@@ -4,7 +4,7 @@
   "name": "ai-language",
   "short_name": "ai-lan",
   "description": "句子翻譯練習",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
