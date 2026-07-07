@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<meta name="theme-color" content="#2563eb"> <!-- 配合您系統的藍色導覽列 -->
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 雙語翻譯練習與記憶系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Toast 樣式 */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 50; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease-out; }
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.info { background-color: #3b82f6; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* 隱藏捲軸但可捲動 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen flex flex-col">
+
+    <nav class="bg-blue-600 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 text-xl font-bold">
+                <i class="fas fa-language text-2xl"></i>
+                <span class="hidden sm:inline" data-i18n="app_name">AI 雙語練習系統</span>
+            </div>
+            <div class="flex gap-2 sm:gap-6 text-sm sm:text-base">
+                <button onclick="App.navigate('dashboard')" class="hover:text-blue-200 transition px-2 py-1"><i class="fas fa-home"></i> <span class="hidden sm:inline" data-i18n="nav_dash">題庫</span></button>
+                <button onclick="App.navigate('manage')" class="hover:text-blue-200 transition px-2 py-1"><i class="fas fa-database"></i> <span class="hidden sm:inline" data-i18n="nav_man">管理</span></button>
+                <button onclick="App.navigate('settings')" class="hover:text-blue-200 transition px-2 py-1"><i class="fas fa-cog"></i> <span class="hidden sm:inline" data-i18n="nav_set">設定</span></button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6 sm:py-8">
+        
+        <!-- 視圖：首頁/題庫列表 -->
+        <div id="view-dashboard" class="fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800" data-i18n="dash_title">我的題庫</h2>
+                <div class="flex gap-2">
+                    <button onclick="App.navigate('review')" class="bg-purple-100 text-purple-600 hover:bg-purple-200 px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition text-sm shadow-sm flex items-center gap-1">
+                        <i class="fas fa-book-open"></i> <span class="hidden sm:inline" data-i18n="btn_review">全面複習</span>
+                    </button>
+                    <button onclick="App.navigate('manage')" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition text-sm shadow-sm flex items-center gap-1">
+                        <i class="fas fa-plus"></i> <span class="hidden sm:inline" data-i18n="btn_add">新增資料</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="dashboard-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <!-- 統計數據由 JS 產生 -->
+            </div>
+
+            <div id="category-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 題庫卡片由 JS 產生 -->
+            </div>
+        </div>
+
+        <!-- 視圖：全面複習 -->
+        <div id="view-review" class="hidden fade-in max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="App.navigate('dashboard')" class="text-gray-500 hover:text-blue-600 transition flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> <span data-i18n="btn_back">返回題庫</span>
+                </button>
+                <h2 class="text-2xl font-bold text-gray-800" data-i18n="rev_title">全面複習</h2>
+            </div>
+
+            <div class="glass-panel p-6 rounded-xl mb-6 shadow-sm">
+                <label class="block text-sm font-bold text-gray-700 mb-2"><i class="fas fa-filter text-purple-500"></i> <span data-i18n="rev_sel">請選擇要複習的主題：</span></label>
+                <select id="review-category-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" onchange="App.renderReviewList()">
+                    <!-- Options 由 JS 產生 -->
+                </select>
+            </div>
+
+            <div class="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                <ul id="review-sentence-list" class="divide-y divide-gray-100">
+                    <!-- 列表由 JS 產生 -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- 視圖：練習模式 -->
+        <div id="view-practice" class="hidden fade-in max-w-3xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="App.navigate('dashboard')" class="text-gray-500 hover:text-blue-600 transition flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> <span data-i18n="btn_back">返回題庫</span>
+                </button>
+                <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full" id="practice-category-badge">日常對話</span>
+            </div>
+
+            <div class="glass-panel p-6 sm:p-8 rounded-2xl relative">
+                <!-- 載入動畫 -->
+                <div id="practice-loading" class="hidden absolute inset-0 bg-white/80 rounded-2xl flex flex-col justify-center items-center z-10 backdrop-blur-sm">
+                    <i class="fas fa-circle-notch fa-spin text-4xl text-blue-500 mb-4"></i>
+                    <p class="text-gray-600 font-medium" id="practice-loading-text" data-i18n="prac_translating">AI 正在批改中...</p>
+                </div>
+
+                <div id="practice-question-area">
+                    <h3 class="text-sm font-medium text-gray-500 mb-2" id="practice-instruction" data-i18n="prac_inst">請翻譯成目標語言：</h3>
+                    <div class="flex justify-between items-start gap-4 mb-6">
+                        <div class="text-2xl sm:text-3xl font-bold text-gray-800 leading-tight" id="practice-zh">載入中...</div>
+                        <button onclick="App.playTargetHint()" class="shrink-0 w-10 h-10 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-700 flex justify-center items-center transition shadow-sm" title="發音提示">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                    </div>
+                    
+                    <textarea id="practice-input" rows="3" class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm text-lg resize-none" data-i18n="prac_ph" placeholder="請在此輸入您的翻譯..."></textarea>
+                    
+                    <button id="btn-submit-answer" onclick="App.submitAnswer()" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-lg">
+                        <i class="fas fa-paper-plane"></i> <span data-i18n="prac_sub">提交答案</span>
+                    </button>
+                </div>
+
+                <div id="practice-result-area" class="hidden mt-6 pt-6 border-t border-gray-200 fade-in">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div id="result-score-circle" class="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-md">
+                                5
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-lg" data-i18n="prac_score">AI 評分</h4>
+                                <p class="text-sm text-gray-500" id="result-srs-status">下次複習：3天後</p>
+                            </div>
+                        </div>
+                        <button onclick="App.playStandardAnswer()" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                            <i class="fas fa-volume-up"></i> <span data-i18n="prac_read">朗讀標準答案</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-100">
+                        <p class="text-sm text-gray-500 mb-1" data-i18n="prac_std">標準答案：</p>
+                        <p class="text-lg font-medium text-gray-800" id="result-standard-en"></p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl">
+                            <h4 class="font-bold text-blue-800 mb-2"><i class="fas fa-comment-dots"></i> <span data-i18n="prac_fb">語法回饋</span></h4>
+                            <p class="text-gray-700 text-sm leading-relaxed" id="result-feedback"></p>
+                        </div>
+                        
+                        <div class="grid lg:grid-cols-2 gap-4">
+                            <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-xl">
+                                <h4 class="font-bold text-green-800 mb-2"><i class="fas fa-layer-group"></i> <span data-i18n="prac_chunk">實用語塊</span></h4>
+                                <ul class="text-sm text-gray-700 space-y-3" id="result-chunks"></ul>
+                            </div>
+                            
+                            <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-xl">
+                                <h4 class="font-bold text-purple-800 mb-2"><i class="fas fa-star"></i> <span data-i18n="prac_word">進階單字 (B2+)</span></h4>
+                                <ul class="text-sm text-gray-700 space-y-3" id="result-words"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="App.nextQuestion()" class="mt-6 w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-4 rounded-xl transition shadow-md flex justify-center items-center gap-2 text-lg">
+                        <span data-i18n="prac_next">下一題</span> <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="practice-empty-state" class="hidden glass-panel rounded-2xl p-10 text-center mt-8">
+                <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-gray-800 mb-2" data-i18n="prac_great">太棒了！</h3>
+                <p class="text-gray-600" data-i18n="prac_done">目前這個題庫沒有需要複習的句子了。</p>
+                <button onclick="App.navigate('dashboard')" class="mt-6 bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg transition" data-i18n="btn_back">返回列表</button>
+            </div>
+        </div>
+
+        <div id="view-manage" class="hidden fade-in max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6" data-i18n="man_title">資料管理</h2>
+            
+            <div class="glass-panel rounded-xl overflow-hidden">
+                <div class="flex border-b border-gray-200">
+                    <button class="manage-tab-btn flex-1 py-3 font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50" data-target="tab-add">
+                        <i class="fas fa-plus-circle"></i> <span data-i18n="man_add">新增資料</span>
+                    </button>
+                    <button class="manage-tab-btn flex-1 py-3 font-medium text-gray-500 hover:bg-gray-50 transition" data-target="tab-browse">
+                        <i class="fas fa-list"></i> <span data-i18n="man_del">瀏覽與刪除</span>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <div id="tab-add" class="manage-tab-content block space-y-8">
+                        
+                        <div class="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-800 mb-2"><i class="fas fa-magic text-purple-500"></i> <span data-i18n="man_ai_gen">AI 依主題自動生成題庫</span></h3>
+                            <p class="text-sm text-gray-500 mb-4" data-i18n="man_ai_desc">輸入一個情境或主題，AI 將為您生成 20 題符合您學習語言的對話句。</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="ai-theme-input" data-i18n="man_ai_ph" placeholder="例如：在西餐廳點牛排" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                <button id="btn-ai-generate" onclick="App.generateAITheme()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 rounded-lg font-bold transition whitespace-nowrap">
+                                    <i class="fas fa-robot"></i> <span data-i18n="man_btn_gen">生成</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-800 mb-2"><i class="fas fa-language text-blue-500"></i> <span data-i18n="man_cus_title">中文翻譯成外語並儲存</span></h3>
+                            <p class="text-sm text-gray-500 mb-4" data-i18n="man_cus_desc">輸入您的母語句子，AI 會幫您翻成目標語言。確認後可一鍵加入「自定義」題庫。</p>
+                            <div class="flex flex-col gap-3">
+                                <textarea id="custom-quiz-zh" rows="2" data-i18n="man_cus_ph" placeholder="請輸入句子..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                                <div class="flex gap-2">
+                                    <button id="btn-custom-translate" onclick="App.translateCustom()" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg transition font-medium" data-i18n="man_cus_btn">
+                                        翻譯預覽
+                                    </button>
+                                </div>
+                                <div id="custom-preview-area" class="hidden mt-2 p-4 bg-blue-50 border border-blue-200 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    <div class="flex-1">
+                                        <p class="text-xs text-blue-500 font-bold mb-1" data-i18n="man_cus_res">翻譯結果：</p>
+                                        <p id="custom-preview-en" class="font-medium text-gray-800"></p>
+                                    </div>
+                                    <button onclick="App.saveCustomToDb()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm whitespace-nowrap shrink-0 transition">
+                                        <i class="fas fa-save"></i> <span data-i18n="man_cus_add">加入自定義題庫</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-800 mb-2"><i class="fas fa-keyboard text-green-500"></i> <span data-i18n="man_man_title">手動輸入對照句</span></h3>
+                            <div class="space-y-3">
+                                <input type="text" id="manual-cat" data-i18n="man_man_cat" placeholder="題庫名稱 (例如: 多益單字)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                <textarea id="manual-zh" rows="2" data-i18n="man_man_zh" placeholder="母語句子..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 resize-none"></textarea>
+                                <textarea id="manual-en" rows="2" data-i18n="man_man_en" placeholder="目標語言翻譯..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 resize-none"></textarea>
+                                <button onclick="App.addManualData()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">
+                                    <i class="fas fa-plus"></i> <span data-i18n="man_man_btn">新增這筆資料</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-browse" class="manage-tab-content hidden space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="man_del_sel">選擇要管理的題庫：</label>
+                            <select id="manage-category-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="App.renderManageList()">
+                            </select>
+                        </div>
+                        
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-gray-800"><span data-i18n="man_del_list">資料列表</span> (<span id="manage-item-count">0</span>)</h4>
+                            <button onclick="App.deleteSelectedCategory()" class="text-red-500 hover:text-red-700 text-sm font-medium transition flex items-center gap-1 bg-red-50 px-3 py-1 rounded-md">
+                                <i class="fas fa-trash-alt"></i> <span data-i18n="man_del_all">刪除整個題庫</span>
+                            </button>
+                        </div>
+
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <ul id="manage-sentence-list" class="divide-y divide-gray-200 max-h-96 overflow-y-auto bg-white">
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-settings" class="hidden fade-in max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6" data-i18n="set_title">系統設定與備份</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-panel p-6 rounded-xl border-t-4 border-yellow-400">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2"><i class="fas fa-key text-yellow-500"></i> <span data-i18n="set_ai">AI 金鑰設定 (必填)</span></h3>
+                    <p class="text-sm text-gray-500 mb-4" data-i18n="set_ai_desc">請輸入您的 Gemini API Key，系統才能進行翻譯與批改。金鑰僅會儲存在您的瀏覽器中。</p>
+                    <div class="space-y-4">
+                        <input type="password" id="setting-api-key" placeholder="AIzaSy..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 font-mono text-sm">
+                        <p class="text-xs text-gray-400 -mt-2" data-i18n="set_ai_ph">取得方式：前往 Google AI Studio 申請免費 API Key。</p>
+                        
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">AI Model</label>
+                            <select id="setting-ai-model" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 text-sm" onchange="App.saveSettings('auto')">
+                                <option value="gemini-3.5-flash">Gemini 3.5 Flash (最新高速版)</option>
+                                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (推薦 / 快速且穩定)</option>
+                                <option value="gemini-2.0-flash">Gemini 2.0 Flash (強大最新)</option>
+                                <option value="gemini-1.5-flash">Gemini 1.5 Flash (穩定版)</option>
+                                <option value="gemini-1.5-pro">Gemini 1.5 Pro (進階版)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-xl border-t-4 border-blue-500">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2"><i class="fas fa-language text-blue-500"></i> <span data-i18n="set_lang">語言設定</span></h3>
+                    <p class="text-sm text-gray-500 mb-4" data-i18n="set_lang_desc">選擇您的母語與想要學習的目標語言。您可自行新增或刪除選單中的語言。</p>
+                    
+                    <div class="space-y-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="set_lang_user">您的語言 (母語)</label>
+                            <select id="setting-user-lang" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="App.saveSettings('auto')">
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="set_lang_target">學習語言 (目標)</label>
+                            <select id="setting-target-lang" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="App.saveSettings('auto')">
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-200">
+                        <h4 class="font-bold text-gray-700 text-sm mb-3" data-i18n="set_lang_cust">自訂語言選單</h4>
+                        <div class="flex gap-2 mb-1">
+                            <select id="new-lang-select" class="flex-1 p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500">
+                                <option value="" data-i18n="set_lang_scan">正在掃描系統支援的語言...</option>
+                            </select>
+                            <button onclick="App.addLanguage()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-4 py-2 rounded-md transition text-sm shadow-sm shrink-0" data-i18n="set_lang_add">新增</button>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-3"><i class="fas fa-info-circle"></i> <span data-i18n="set_lang_tip">清單由您裝置內建的系統提供。若找不到需要的語言，請至您的「電腦 / 手機設定 > 語言」下載新增語言套件後重新整理本頁。</span></p>
+                        <ul id="setting-language-list" class="space-y-2 max-h-40 overflow-y-auto pr-2 no-scrollbar">
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-xl border-t-4 border-green-500 md:col-span-2">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2"><i class="fas fa-database text-green-500"></i> <span data-i18n="set_db">資料備份與還原</span></h3>
+                    <p class="text-sm text-gray-500 mb-4" data-i18n="set_db_desc">您的資料保存在瀏覽器本地。為避免清除快取遺失，建議定期下載備份。</p>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4 mt-4">
+                        <button onclick="App.exportData()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition flex justify-center items-center gap-2 shadow-sm">
+                            <i class="fas fa-download"></i> <span data-i18n="set_db_dl">下載備份 (JSON)</span>
+                        </button>
+                        
+                        <label class="flex-1 bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 px-4 rounded-lg transition flex justify-center items-center gap-2 cursor-pointer border border-gray-300 shadow-sm">
+                            <i class="fas fa-upload"></i> <span data-i18n="set_db_up">從備份還原</span>
+                            <input type="file" id="import-file" accept=".json" class="hidden" onchange="App.importData(event)">
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="md:col-span-2">
+                    <button onclick="App.saveSettings()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-md text-lg">
+                        <i class="fas fa-save"></i> <span data-i18n="set_save">儲存所有設定</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm fade-in">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-2"><i class="fas fa-exclamation-triangle text-red-500 mr-2"></i><span data-i18n="modal_warn">確認操作</span></h3>
+            <p class="text-gray-600 mb-6" id="confirm-message" data-i18n="modal_msg">您確定要執行此操作嗎？</p>
+            <div class="flex justify-end gap-3">
+                <button id="confirm-btn-cancel" class="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition font-medium" data-i18n="modal_cancel">取消</button>
+                <button id="confirm-btn-ok" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium" data-i18n="modal_ok">確定刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        // ==========================================
+        // 1. 資料庫模組
+        // ==========================================
+        const DB_KEY = 'ai_language_app_data_v2';
+        
+        const DEFAULT_DATA = {
+            settings: { userLang: 'zh-TW', targetLang: 'en-US', apiKey: '', model: 'gemini-3.1-flash-lite' },
+            uiTranslations: {}, // 儲存各國語言的翻譯字典
+            languages: {
+                "zh-TW": "繁體中文", "en-US": "英文", "ja-JP": "日文", 
+                "ko-KR": "韓文", "fr-FR": "法文", "it-IT": "義大利文"
+            },
+            categories: { "cat_daily": "日常對話 (英)" },
+            sentences: [
+                { id: "s1", catId: "cat_daily", zh: "你好，很高興認識你。", en: "Hello, nice to meet you.", nextReview: 0, interval: 0, ease: 2.5 },
+                { id: "s2", catId: "cat_daily", zh: "請問最近的地鐵站在哪裡？", en: "Excuse me, where is the nearest subway station?", nextReview: 0, interval: 0, ease: 2.5 }
+            ]
+        };
+
+        let STATE = {
+            settings: {}, uiTranslations: {}, languages: {}, categories: {},
+            sentences: [], practiceQueue: [], currentQuestion: null, voicesReady: false
+        };
+
+        const Storage = {
+            load: () => {
+                const data = localStorage.getItem(DB_KEY);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    STATE.settings = { ...DEFAULT_DATA.settings, ...parsed.settings };
+                    STATE.uiTranslations = parsed.uiTranslations || {};
+                    STATE.languages = parsed.languages || DEFAULT_DATA.languages;
+                    STATE.categories = parsed.categories || DEFAULT_DATA.categories;
+                    STATE.sentences = parsed.sentences || DEFAULT_DATA.sentences;
+                } else {
+                    STATE = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                    Storage.save();
+                }
+            },
+            save: () => {
+                localStorage.setItem(DB_KEY, JSON.stringify({
+                    settings: STATE.settings, uiTranslations: STATE.uiTranslations,
+                    languages: STATE.languages, categories: STATE.categories, sentences: STATE.sentences
+                }));
+            },
+            generateId: () => 'id_' + Math.random().toString(36).substr(2, 9)
+        };
+
+        // ==========================================
+        // 2. 多國語言介面 (i18n) 引擎
+        // ==========================================
+        const BASE_UI = {
+            "app_name": "AI 雙語練習系統",
+            "nav_dash": "題庫", "nav_man": "管理", "nav_set": "設定",
+            "dash_title": "我的題庫", "btn_review": "全面複習", "btn_add": "新增資料",
+            "stat_cat": "主題數量", "stat_total": "總句數", "stat_today": "今日待複習",
+            "cat_total": "共", "cat_sen": "句", "cat_rev": "需複習", "cat_done": "已完成",
+            "rev_title": "全面複習", "rev_sel": "請選擇要複習的主題：", 
+            "rev_empty1": "請從上方選單選擇一個主題來顯示句子。", "rev_empty2": "此主題目前沒有任何句子。",
+            "btn_back": "返回",
+            "prac_translating": "AI 正在處理中...", "prac_inst": "請翻譯成目標語言：", "prac_ph": "請在此輸入您的翻譯...",
+            "prac_sub": "提交答案", "prac_score": "AI 評分", "prac_next_rev": "下次複習",
+            "prac_read": "發音", "prac_std": "標準答案：",
+            "prac_fb": "語法回饋", "prac_chunk": "實用語塊", "prac_word": "進階單字 (B2+)",
+            "prac_next": "下一題", "prac_great": "太棒了！", "prac_done": "目前這個題庫沒有需要複習的句子了。",
+            "man_title": "資料管理", "man_add": "新增資料", "man_del": "瀏覽與刪除",
+            "man_ai_gen": "AI 依主題自動生成題庫", "man_ai_desc": "輸入一個情境或主題，AI 將為您生成 20 題符合您學習語言的對話句。",
+            "man_ai_ph": "例如：在西餐廳點牛排", "man_btn_gen": "生成",
+            "man_cus_title": "母語翻譯成外語並儲存", "man_cus_desc": "輸入您的母語句子，AI 會幫您翻成目標語言。確認後可一鍵加入「自定義」題庫。",
+            "man_cus_ph": "請輸入句子...", "man_cus_btn": "翻譯預覽", "man_cus_res": "翻譯結果：", "man_cus_add": "加入自定義",
+            "man_man_title": "手動輸入對照句", "man_man_cat": "題庫名稱", "man_man_zh": "母語句子...", "man_man_en": "目標語言翻譯...", "man_man_btn": "新增這筆資料",
+            "man_del_sel": "選擇要管理的題庫：", "man_del_list": "資料列表", "man_del_all": "刪除整個題庫",
+            "set_title": "系統設定與備份",
+            "set_ai": "AI 金鑰設定 (必填)", "set_ai_desc": "請輸入您的 Gemini API Key。", "set_ai_ph": "前往 Google AI Studio 申請",
+            "set_lang": "語言設定", "set_lang_desc": "選擇您的母語與想要學習的目標語言。介面語言會跟隨您的母語自動變更。",
+            "set_lang_user": "您的語言 (母語)", "set_lang_target": "學習語言 (目標)",
+            "set_lang_cust": "自訂系統語言庫", "set_lang_scan": "正在掃描裝置支援的語言...", "set_lang_add": "新增至清單",
+            "set_lang_tip": "清單由您裝置內建的系統提供。若找不到，請至手機/電腦系統下載語言包。",
+            "set_db": "資料備份與還原", "set_db_desc": "建議定期下載備份以防資料遺失。",
+            "set_db_dl": "下載備份 (JSON)", "set_db_up": "從備份還原", "set_save": "儲存所有設定",
+            "modal_warn": "確認操作", "modal_msg": "您確定要執行此操作嗎？", "modal_cancel": "取消", "modal_ok": "確定刪除"
+        };
+
+        const I18N = {
+            dict: {},
+            get: function(key) { return this.dict[key] || BASE_UI[key] || key; },
+            apply: function() {
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'OPTION') {
+                        el.placeholder = this.get(key);
+                        if(el.tagName === 'OPTION') el.innerText = this.get(key);
+                    } else {
+                        el.innerText = this.get(key);
+                    }
+                });
+                document.title = this.get('app_name');
+            },
+            init: function() {
+                const lang = STATE.settings.userLang;
+                if (lang === 'zh-TW') { this.dict = BASE_UI; } 
+                else if (STATE.uiTranslations[lang]) { this.dict = STATE.uiTranslations[lang]; } 
+                else { this.dict = BASE_UI; }
+                this.apply();
+            },
+            translateUI: async function() {
+                const lang = STATE.settings.userLang;
+                if (lang === 'zh-TW') {
+                    this.dict = BASE_UI; this.apply();
+                    return;
+                }
+                if (STATE.uiTranslations[lang]) {
+                    this.dict = STATE.uiTranslations[lang]; this.apply();
+                    return;
+                }
+                if (!STATE.settings.apiKey) {
+                    UI.toast('💡 提示：設定 API Key 後，系統可自動將介面翻譯為您的母語！', 'info');
+                    return;
+                }
+
+                UI.toast('🚀 AI 正在為您將介面翻譯成母語，請稍候...', 'info');
+                const langName = STATE.languages[lang] || lang;
+                const prompt = `請將以下 JSON 格式的繁體中文介面文字，翻譯成「${langName}」。\n【極重要規則】1. 嚴格保持 JSON 格式與 Key 不變。2. 只翻譯 Value 的部分。\nJSON：${JSON.stringify(BASE_UI)}`;
+
+                try {
+                    const res = await callGemini(prompt, true);
+                    STATE.uiTranslations[lang] = res;
+                    Storage.save();
+                    this.dict = res;
+                    this.apply();
+                    App.renderDashboard(); // 重新渲染動態文字
+                    UI.toast('✅ 介面語言自動切換完成！', 'success');
+                } catch(e) {
+                    console.error("UI Translate error", e);
+                    UI.toast('介面翻譯失敗，將暫時維持原語言。', 'error');
+                }
+            }
+        };
+
+        // ==========================================
+        // 3. UI 與共用工具模組
+        // ==========================================
+        const UI = {
+            show: (id) => document.getElementById(id).classList.remove('hidden'),
+            hide: (id) => document.getElementById(id).classList.add('hidden'),
+            toast: (msg, type = 'info') => {
+                const container = document.getElementById('toast-container');
+                const t = document.createElement('div');
+                t.className = `toast ${type}`;
+                t.innerHTML = msg;
+                container.appendChild(t);
+                setTimeout(() => {
+                    t.style.animation = 'slideIn 0.3s ease-out reverse forwards';
+                    setTimeout(() => t.remove(), 300);
+                }, 3000);
+            },
+            setLoading: (btnId, isLoading, defaultHtml = '') => {
+                const btn = document.getElementById(btnId);
+                if (!btn) return;
+                if (isLoading) {
+                    btn.disabled = true;
+                    btn.dataset.html = btn.innerHTML;
+                    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Processing...`;
+                    btn.classList.add('opacity-70', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = defaultHtml || btn.dataset.html;
+                    btn.classList.remove('opacity-70', 'cursor-not-allowed');
+                }
+            },
+            confirm: (message, onConfirm, onCancel) => {
+                const modal = document.getElementById('confirm-modal');
+                if (!modal) return;
+                document.getElementById('confirm-message').innerText = message;
+                UI.show('confirm-modal');
+                
+                const btnOk = document.getElementById('confirm-btn-ok');
+                const btnCancel = document.getElementById('confirm-btn-cancel');
+                
+                const newBtnOk = btnOk.cloneNode(true);
+                const newBtnCancel = btnCancel.cloneNode(true);
+                btnOk.parentNode.replaceChild(newBtnOk, btnOk);
+                btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+                
+                newBtnCancel.onclick = () => { UI.hide('confirm-modal'); if(onCancel) onCancel(); };
+                newBtnOk.onclick = () => { UI.hide('confirm-modal'); if(onConfirm) onConfirm(); };
+            }
+        };
+
+        // ==========================================
+        // 4. AI API 呼叫模組 (含防錯機制)
+        // ==========================================
+        async function callGemini(promptText, isJson = true) {
+            const apiKey = STATE.settings.apiKey;
+            if (!apiKey) throw new Error("Missing API Key");
+
+            const modelName = STATE.settings.model || 'gemini-3.1-flash-lite';
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }],
+                generationConfig: { response_mime_type: isJson ? "application/json" : "text/plain" }
+            };
+
+            const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                let errorMsg = errData.error?.message || "API Request Failed";
+                if (errorMsg.includes("API key not valid")) errorMsg = "API Key 無效！請確認您設定了正確的金鑰。";
+                else if (errorMsg.includes("not found")) errorMsg = `指定的 AI 模型不存在 (${modelName})，請至設定切換其他模型。`;
+                else if (res.status === 429 || errorMsg.includes("quota")) {
+                    let waitTime = "稍後";
+                    const match = errorMsg.match(/retry in ([\d\.]+)s/);
+                    if (match) waitTime = Math.ceil(parseFloat(match[1])) + " 秒";
+                    if (errorMsg.includes("limit: 0")) errorMsg = `該模型目前不支援免費額度。請至「設定」改用 Gemini 1.5 Flash 即可解決。`;
+                    else errorMsg = `API 請求過於頻繁！請稍等 ${waitTime} 後再試。`;
+                }
+                throw new Error(errorMsg);
+            }
+
+            const data = await res.json();
+            const textResult = data.candidates[0].content.parts[0].text;
+            if (isJson) {
+                try { return JSON.parse(textResult); } 
+                catch (e) { throw new Error("JSON Parse Error"); }
+            }
+            return textResult;
+        }
+
+        // ==========================================
+        // 5. 語音與語言模組
+        // ==========================================
+        function populateSystemLanguages() {
+            const select = document.getElementById('new-lang-select');
+            if (!select) return;
+
+            const voices = speechSynthesis.getVoices();
+            if (voices.length === 0) return;
+
+            const langMap = {};
+            // 嘗試使用使用者的母語來顯示語言名稱 (例如: 日文模式下會顯示 "日本語")
+            const displayLocale = STATE.settings.userLang || 'zh-TW';
+            const displayNames = new Intl.DisplayNames([displayLocale], { type: 'language' });
+
+            voices.forEach(v => {
+                if (v.lang && !langMap[v.lang]) {
+                    try { langMap[v.lang] = displayNames.of(v.lang); } 
+                    catch (e) { langMap[v.lang] = v.lang; }
+                }
+            });
+
+            const sortedLangs = Object.entries(langMap).sort((a, b) => a[1].localeCompare(b[1]));
+            
+            const scanText = I18N.get('set_lang_scan').replace('正在掃描', '已載入');
+            select.innerHTML = `<option value="">-- ${scanText} --</option>`;
+            
+            sortedLangs.forEach(([code, name]) => {
+                const opt = document.createElement('option');
+                opt.value = code; opt.dataset.name = name; opt.innerText = `${name} (${code})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function initSpeech() {
+            if ('speechSynthesis' in window) {
+                let voices = speechSynthesis.getVoices();
+                if (voices.length > 0) { STATE.voicesReady = true; populateSystemLanguages(); }
+                speechSynthesis.onvoiceschanged = () => { STATE.voicesReady = true; populateSystemLanguages(); };
+            }
+        }
+
+        function speakText(text, langCode) {
+            if (!('speechSynthesis' in window)) return UI.toast('您的瀏覽器不支援發音功能', 'error');
+            speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
+            utterance.rate = 0.9;
+            const voices = speechSynthesis.getVoices();
+            const prefix = langCode.split('-')[0];
+            let bestVoice = voices.find(v => v.name.includes('Google') && v.lang.startsWith(prefix)) 
+                         || voices.find(v => v.lang === langCode) || voices.find(v => v.lang.startsWith(prefix));
+            if (bestVoice) utterance.voice = bestVoice;
+            speechSynthesis.speak(utterance);
+        }
+
+        // ==========================================
+        // 6. 主應用程式控制器
+        // ==========================================
+        const App = {
+            init() {
+                Storage.load();
+                I18N.init(); // 初始化介面語言
+                initSpeech();
+                this.setupUIBindings();
+                this.syncSettingsUI();
+                this.navigate('dashboard');
+                this.checkAutoLoad();
+            },
+
+            async checkAutoLoad() {
+                const today = new Date();
+                const dateString = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+                const filename = `LanguageApp_Backup_${dateString}.json`; // 自動尋找符合今日日期的備份檔
+
+                try {
+                    const response = await fetch(filename);
+                    if (response.ok) {
+                        const data = await response.json();
+                        setTimeout(() => {
+                            UI.confirm(`發現同目錄下有最新的備份檔 (${filename})，是否自動載入？ (選擇「取消」可手動選取其他檔案)`, 
+                                () => { this.importDataFromObj(data); },
+                                () => { document.getElementById('import-file').click(); }
+                            );
+                        }, 500); // 延遲讓畫面有時間先渲染
+                    }
+                } catch (e) {
+                    // 若不是透過 http server 開啟 (例如 file://) 或是檔案不存在，fetch 會失敗，忽略即可
+                    console.log("Auto-load check skipped (file not found or CORS restriction).");
+                }
+            },
+
+            setupUIBindings() {
+                document.querySelectorAll('.manage-tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.manage-tab-btn').forEach(b => {
+                            b.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                            b.classList.add('text-gray-500');
+                        });
+                        e.currentTarget.classList.remove('text-gray-500');
+                        e.currentTarget.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                        document.querySelectorAll('.manage-tab-content').forEach(c => c.classList.add('hidden'));
+                        document.getElementById(e.currentTarget.dataset.target).classList.remove('hidden');
+                        if(e.currentTarget.dataset.target === 'tab-browse') this.renderManageList();
+                    });
+                });
+
+                document.getElementById('practice-input').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!document.getElementById('btn-submit-answer').disabled) this.submitAnswer();
+                    }
+                });
+            },
+
+            navigate(view) {
+                ['view-dashboard', 'view-practice', 'view-manage', 'view-settings', 'view-review'].forEach(UI.hide);
+                UI.show(`view-${view}`);
+                window.scrollTo(0, 0);
+
+                if (view === 'dashboard') this.renderDashboard();
+                if (view === 'manage') this.populateCategorySelect();
+                if (view === 'review') this.renderReviewPage();
+            },
+
+            // --- 全面複習 ---
+            renderReviewPage() {
+                const select = document.getElementById('review-category-select');
+                select.innerHTML = `<option value="">-- ${I18N.get('lbl_theme') || '選擇主題'} --</option>`;
+                for (let [id, name] of Object.entries(STATE.categories)) {
+                    select.add(new Option(name, id));
+                }
+                this.renderReviewList();
+            },
+
+            renderReviewList() {
+                const catId = document.getElementById('review-category-select').value;
+                const list = document.getElementById('review-sentence-list');
+                list.innerHTML = '';
+                
+                if (!catId) {
+                    list.innerHTML = `<li class="p-8 text-center text-gray-500">${I18N.get('rev_empty1')}</li>`;
+                    return;
+                }
+
+                const filtered = STATE.sentences.filter(s => s.catId === catId);
+                if(filtered.length === 0) {
+                    list.innerHTML = `<li class="p-8 text-center text-gray-500">${I18N.get('rev_empty2')}</li>`;
+                    return;
+                }
+
+                filtered.forEach((s, index) => {
+                    const li = document.createElement('li');
+                    li.className = "p-4 sm:p-5 hover:bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition";
+                    const safeText = s.en.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    li.innerHTML = `
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-500 mb-1">${index + 1}. ${s.zh}</p>
+                            <p class="text-lg font-bold text-gray-800">${s.en}</p>
+                        </div>
+                        <button onclick="App.playText('${safeText}')" class="shrink-0 w-10 h-10 rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 flex justify-center items-center transition shadow-sm" title="發音">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                    `;
+                    list.appendChild(li);
+                });
+            },
+
+            // --- 首頁題庫 ---
+            renderDashboard() {
+                const list = document.getElementById('category-list');
+                const stats = document.getElementById('dashboard-stats');
+                list.innerHTML = '';
+                
+                let totalS = 0, reviewS = 0;
+                const now = Date.now();
+                const counts = {}; 
+                for (let id in STATE.categories) counts[id] = { total: 0, review: 0 };
+
+                STATE.sentences.forEach(s => {
+                    if (!counts[s.catId]) counts[s.catId] = { total: 0, review: 0 };
+                    counts[s.catId].total++;
+                    totalS++;
+                    if (s.nextReview <= now) { counts[s.catId].review++; reviewS++; }
+                });
+
+                stats.innerHTML = `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
+                        <span class="text-3xl font-bold text-blue-600">${Object.keys(STATE.categories).length}</span>
+                        <span class="text-xs text-gray-500 mt-1">${I18N.get('stat_cat')}</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
+                        <span class="text-3xl font-bold text-gray-800">${totalS}</span>
+                        <span class="text-xs text-gray-500 mt-1">${I18N.get('stat_total')}</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center col-span-2 md:col-span-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                        <span class="text-3xl font-bold">${reviewS}</span>
+                        <span class="text-xs text-blue-100 mt-1">${I18N.get('stat_today')}</span>
+                    </div>
+                `;
+
+                for (let [id, name] of Object.entries(STATE.categories)) {
+                    const c = counts[id];
+                    const div = document.createElement('div');
+                    div.className = "bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition group relative overflow-hidden";
+                    
+                    const badgeText = c.review > 0 ? `${I18N.get('cat_rev')}: ${c.review}` : I18N.get('cat_done');
+                    const badgeClass = c.review > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700';
+
+                    div.innerHTML = `
+                        <div class="absolute top-0 left-0 w-1 h-full ${c.review > 0 ? 'bg-orange-400' : 'bg-green-400'}"></div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-1 group-hover:text-blue-600 transition">${name}</h3>
+                        <p class="text-sm text-gray-500 mb-4">${I18N.get('cat_total')} ${c.total} ${I18N.get('cat_sen')}</p>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="${badgeClass} text-xs font-bold px-2 py-1 rounded">${badgeText}</span>
+                            <button onclick="App.startPractice('${id}')" class="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white p-2 rounded-full transition" title="Start">
+                                <i class="fas fa-play ml-1"></i>
+                            </button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                }
+            },
+
+            // --- 練習模式 ---
+            startPractice(catId) {
+                const now = Date.now();
+                STATE.practiceQueue = STATE.sentences
+                    .filter(s => s.catId === catId && s.nextReview <= now)
+                    .sort(() => Math.random() - 0.5);
+
+                if (STATE.practiceQueue.length === 0) {
+                    UI.toast(I18N.get('prac_done'), 'info');
+                    return;
+                }
+
+                document.getElementById('practice-category-badge').innerText = STATE.categories[catId];
+                this.navigate('practice');
+                UI.hide('practice-empty-state');
+                UI.show('practice-question-area');
+                UI.hide('practice-result-area');
+                this.nextQuestion();
+            },
+
+            nextQuestion() {
+                if (STATE.practiceQueue.length === 0) {
+                    UI.hide('practice-question-area'); UI.hide('practice-result-area');
+                    UI.show('practice-empty-state'); return;
+                }
+
+                STATE.currentQuestion = STATE.practiceQueue.shift();
+                document.getElementById('practice-zh').innerText = STATE.currentQuestion.zh;
+                
+                const input = document.getElementById('practice-input');
+                input.value = ''; input.disabled = false; input.focus();
+
+                UI.hide('practice-result-area');
+                UI.show('btn-submit-answer');
+            },
+
+            playTargetHint() { if (STATE.currentQuestion) speakText(STATE.currentQuestion.en, STATE.settings.targetLang); },
+            playStandardAnswer() { if (STATE.currentQuestion) speakText(STATE.currentQuestion.en, STATE.settings.targetLang); },
+            playText(text) { speakText(text, STATE.settings.targetLang); },
+
+            async submitAnswer() {
+                const input = document.getElementById('practice-input');
+                const userAns = input.value.trim();
+                if (!userAns) return;
+
+                if (!STATE.settings.apiKey) {
+                    UI.toast('API Key is missing!', 'error');
+                    this.navigate('settings'); return;
+                }
+
+                input.disabled = true;
+                UI.show('practice-loading');
+                UI.hide('btn-submit-answer');
+
+                const q = STATE.currentQuestion;
+                const userL = STATE.languages[STATE.settings.userLang];
+                const targetL = STATE.languages[STATE.settings.targetLang];
+
+                // 更新後的 Prompt：要求 AI 提供詞性、雙語例句
+                const prompt = `
+                你是一位嚴格但鼓勵人的語言老師。
+                原${userL}句子: "${q.zh}"
+                標準${targetL}翻譯: "${q.en}"
+                學生的翻譯: "${userAns}"
+
+                任務：
+                1. 評分：0到5分（整數）。5分是完美，0分是完全錯誤。
+                2. 語法回饋：用${userL}說明語法錯誤或改進空間。
+                3. 實用語塊：挑出 1-2 個片語，包含目標語言語塊、詞性、母語解釋，以及包含該語塊的雙語例句。
+                4. 進階單字：挑出 CEFR B2 級別以上的單字，包含目標語言單字、詞性、母語解釋，以及包含該單字的雙語例句。
+
+                請嚴格輸出 JSON 格式 (請確保鍵值名稱完全相同)：
+                {
+                    "score": <數字0-5>,
+                    "feedback": "<字串>",
+                    "chunks": [{"phrase": "<目標語言>", "pos": "<詞性>", "desc": "<母語解釋>", "ex_target": "<目標語言例句>", "ex_native": "<母語翻譯>"}],
+                    "words": [{"word": "<目標語言>", "pos": "<詞性>", "desc": "<母語解釋>", "ex_target": "<目標語言例句>", "ex_native": "<母語翻譯>"}]
+                }
+                `;
+
+                try {
+                    const res = await callGemini(prompt);
+                    UI.hide('practice-loading');
+                    this.renderResult(res, q);
+                    this.updateSRS(q, res.score);
+                } catch (e) {
+                    UI.hide('practice-loading'); input.disabled = false; UI.show('btn-submit-answer');
+                    UI.toast(e.message, 'error');
+                }
+            },
+
+            renderResult(res, q) {
+                UI.show('practice-result-area');
+                const circle = document.getElementById('result-score-circle');
+                circle.innerText = res.score;
+                circle.className = "w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-md " + 
+                    (res.score >= 4 ? "bg-green-500" : res.score >= 3 ? "bg-yellow-500" : "bg-red-500");
+
+                document.getElementById('result-standard-en').innerText = q.en;
+                document.getElementById('result-feedback').innerText = res.feedback;
+                
+                // 渲染實用語塊 (加入詞性、雙語例句與發音)
+                const ulChunks = document.getElementById('result-chunks');
+                if (res.chunks && res.chunks.length > 0 && res.chunks[0].phrase) {
+                    ulChunks.innerHTML = res.chunks.map(c => {
+                        const posTag = c.pos ? `<span class="text-xs text-green-700 bg-green-200 px-1.5 py-0.5 rounded ml-1 font-medium shadow-sm">${c.pos}</span>` : '';
+                        return `
+                        <li class="border-b border-green-100 pb-3 last:border-0 last:pb-0">
+                            <div class="flex items-start gap-2 mb-1.5">
+                                <button onclick="App.playText('${(c.phrase||'').replace(/'/g, "\\'")}')" class="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-green-100 text-green-600 hover:bg-green-200 flex justify-center items-center transition" title="朗讀語塊">
+                                    <i class="fas fa-volume-up text-xs"></i>
+                                </button>
+                                <div><span class="font-bold text-green-800 text-base">${c.phrase}</span>${posTag}<span class="text-gray-600 ml-1">- ${c.desc}</span></div>
+                            </div>
+                            ${c.ex_target ? `
+                            <div class="ml-8 mt-1.5 bg-white/60 p-2.5 rounded-lg border border-green-100 shadow-sm text-sm relative">
+                                <div class="flex items-start gap-2 mb-1">
+                                    <button onclick="App.playText('${c.ex_target.replace(/'/g, "\\'")}')" class="shrink-0 text-green-500 hover:text-green-700 transition mt-0.5" title="朗讀例句">
+                                        <i class="fas fa-play-circle text-base"></i>
+                                    </button>
+                                    <span class="text-green-900 font-medium leading-snug">${c.ex_target}</span>
+                                </div>
+                                <div class="ml-6 text-gray-500 text-xs">${c.ex_native || ''}</div>
+                            </div>
+                            ` : ''}
+                        </li>
+                    `}).join('');
+                } else { ulChunks.innerHTML = '<li class="text-gray-400">-</li>'; }
+                
+                // 渲染進階單字 (加入詞性、雙語例句與發音)
+                const ulWords = document.getElementById('result-words');
+                if (res.words && res.words.length > 0 && res.words[0].word) {
+                    ulWords.innerHTML = res.words.map(w => {
+                        const posTag = w.pos ? `<span class="text-xs text-purple-700 bg-purple-200 px-1.5 py-0.5 rounded ml-1 font-medium shadow-sm">${w.pos}</span>` : '';
+                        return `
+                        <li class="border-b border-purple-100 pb-3 last:border-0 last:pb-0">
+                            <div class="flex items-start gap-2 mb-1.5">
+                                <button onclick="App.playText('${(w.word||'').replace(/'/g, "\\'")}')" class="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 flex justify-center items-center transition" title="朗讀單字">
+                                    <i class="fas fa-volume-up text-xs"></i>
+                                </button>
+                                <div><span class="font-bold text-purple-800 text-base">${w.word}</span>${posTag}<span class="text-gray-600 ml-1">- ${w.desc}</span></div>
+                            </div>
+                            ${w.ex_target ? `
+                            <div class="ml-8 mt-1.5 bg-white/60 p-2.5 rounded-lg border border-purple-100 shadow-sm text-sm relative">
+                                <div class="flex items-start gap-2 mb-1">
+                                    <button onclick="App.playText('${w.ex_target.replace(/'/g, "\\'")}')" class="shrink-0 text-purple-500 hover:text-purple-700 transition mt-0.5" title="朗讀例句">
+                                        <i class="fas fa-play-circle text-base"></i>
+                                    </button>
+                                    <span class="text-purple-900 font-medium leading-snug">${w.ex_target}</span>
+                                </div>
+                                <div class="ml-6 text-gray-500 text-xs">${w.ex_native || ''}</div>
+                            </div>
+                            ` : ''}
+                        </li>
+                    `}).join('');
+                } else { ulWords.innerHTML = '<li class="text-gray-400">-</li>'; }
+            },
+
+            updateSRS(q, score) {
+                let ease = q.ease || 2.5, interval = q.interval || 0;
+                if (score < 3) { interval = 1; ease = Math.max(1.3, ease - 0.2); }
+                else if (score === 3) { interval = interval === 0 ? 1 : Math.round(interval * 1.2); }
+                else { interval = interval === 0 ? 1 : Math.round(interval * ease); ease += 0.1; }
+
+                const sIdx = STATE.sentences.findIndex(s => s.id === q.id);
+                if (sIdx > -1) {
+                    STATE.sentences[sIdx].interval = interval;
+                    STATE.sentences[sIdx].ease = ease;
+                    STATE.sentences[sIdx].nextReview = Date.now() + interval * 24 * 60 * 60 * 1000;
+                }
+                Storage.save();
+                document.getElementById('result-srs-status').innerText = `${I18N.get('prac_next_rev')}: ${interval} day(s)`;
+            },
+
+            // --- 資料管理 ---
+            getLangTag() {
+                const targetL = STATE.languages[STATE.settings.targetLang] || "外文";
+                return `(${targetL.replace(/[文語]/g, '')})`;
+            },
+
+            async generateAITheme() {
+                const theme = document.getElementById('ai-theme-input').value.trim();
+                if (!theme) return;
+
+                UI.setLoading('btn-ai-generate', true, `<i class="fas fa-robot"></i> ${I18N.get('man_btn_gen')}`);
+                
+                const userL = STATE.languages[STATE.settings.userLang];
+                const targetL = STATE.languages[STATE.settings.targetLang];
+                const themeWithLang = `${theme} ${this.getLangTag()}`;
+
+                const prompt = `
+                請生成關於主題「${theme}」的實用日常對話，共 20 句。
+                【重點要求】：對話必須是「問與答」形式。
+                母語：${userL}
+                目標語言：${targetL}
+                
+                【極重要規則】無論目標語言為何，JSON 的 Key 請一律固定為 "zh" 與 "en"。
+                輸出格式：[ {"zh": "母語句子", "en": "外語翻譯"} ]
+                `;
+
+                try {
+                    const data = await callGemini(prompt);
+                    let catId = Object.keys(STATE.categories).find(id => STATE.categories[id] === themeWithLang);
+                    if (!catId) { catId = Storage.generateId(); STATE.categories[catId] = themeWithLang; }
+
+                    let addedCount = 0;
+                    data.forEach(item => {
+                        if (!STATE.sentences.some(s => s.catId === catId && s.zh === item.zh)) {
+                            STATE.sentences.push({ id: Storage.generateId(), catId, zh: item.zh, en: item.en, nextReview: 0, interval: 0, ease: 2.5 });
+                            addedCount++;
+                        }
+                    });
+                    
+                    Storage.save();
+                    UI.toast(`Generated ${addedCount} sentences`, 'success');
+                    document.getElementById('ai-theme-input').value = '';
+                    this.populateCategorySelect();
+                } catch (e) { UI.toast(e.message, 'error'); } 
+                finally { UI.setLoading('btn-ai-generate', false); }
+            },
+
+            async translateCustom() {
+                const zh = document.getElementById('custom-quiz-zh').value.trim();
+                if (!zh) return;
+
+                UI.setLoading('btn-custom-translate', true, I18N.get('man_cus_btn'));
+                const targetL = STATE.languages[STATE.settings.targetLang];
+
+                const prompt = `請將以下句子翻譯成自然的 ${targetL}，嚴格輸出 JSON: { "en": "翻譯結果" }\n句子: "${zh}"`;
+                try {
+                    const res = await callGemini(prompt);
+                    document.getElementById('custom-preview-en').innerText = res.en;
+                    UI.show('custom-preview-area');
+                } catch (e) { UI.toast(e.message, 'error'); } 
+                finally { UI.setLoading('btn-custom-translate', false); }
+            },
+
+            saveCustomToDb() {
+                const zh = document.getElementById('custom-quiz-zh').value.trim();
+                const en = document.getElementById('custom-preview-en').innerText.trim();
+                if (!zh || !en) return;
+
+                const customCatName = `自定義 ${this.getLangTag()}`;
+                let catId = Object.keys(STATE.categories).find(id => STATE.categories[id] === customCatName);
+                if (!catId) { catId = Storage.generateId(); STATE.categories[catId] = customCatName; }
+
+                STATE.sentences.push({ id: Storage.generateId(), catId, zh, en, nextReview: 0, interval: 0, ease: 2.5 });
+                Storage.save();
+                UI.toast(`Added to ${customCatName}`, 'success');
+                document.getElementById('custom-quiz-zh').value = '';
+                UI.hide('custom-preview-area');
+                this.populateCategorySelect();
+            },
+
+            addManualData() {
+                let catName = document.getElementById('manual-cat').value.trim() || "未分類";
+                const zh = document.getElementById('manual-zh').value.trim();
+                const en = document.getElementById('manual-en').value.trim();
+                if (!zh || !en) return;
+
+                const tag = this.getLangTag();
+                if (!catName.includes(tag)) catName = `${catName} ${tag}`;
+
+                let catId = Object.keys(STATE.categories).find(id => STATE.categories[id] === catName);
+                if (!catId) { catId = Storage.generateId(); STATE.categories[catId] = catName; }
+
+                STATE.sentences.push({ id: Storage.generateId(), catId, zh, en, nextReview: 0, interval: 0, ease: 2.5 });
+                Storage.save();
+                UI.toast('Added', 'success');
+                document.getElementById('manual-zh').value = ''; document.getElementById('manual-en').value = '';
+                this.populateCategorySelect();
+            },
+
+            populateCategorySelect() {
+                const select = document.getElementById('manage-category-select');
+                select.innerHTML = '';
+                for (let [id, name] of Object.entries(STATE.categories)) select.add(new Option(name, id));
+                this.renderManageList();
+            },
+
+            renderManageList() {
+                const catId = document.getElementById('manage-category-select').value;
+                const list = document.getElementById('manage-sentence-list');
+                const countSpan = document.getElementById('manage-item-count');
+                list.innerHTML = '';
+                
+                if (!catId) { countSpan.innerText = '0'; return; }
+                const filtered = STATE.sentences.filter(s => s.catId === catId);
+                countSpan.innerText = filtered.length;
+
+                filtered.forEach(s => {
+                    const li = document.createElement('li');
+                    li.className = "p-4 hover:bg-gray-50 flex justify-between items-center gap-4 transition";
+                    li.innerHTML = `
+                        <div class="flex-1 overflow-hidden">
+                            <p class="font-bold text-gray-800 truncate" title="${s.zh}">${s.zh}</p>
+                            <p class="text-sm text-gray-500 truncate" title="${s.en}">${s.en}</p>
+                        </div>
+                        <button onclick="App.deleteSentence('${s.id}')" class="shrink-0 w-8 h-8 rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    list.appendChild(li);
+                });
+            },
+
+            deleteSentence(id) {
+                UI.confirm(I18N.get('modal_msg'), () => {
+                    STATE.sentences = STATE.sentences.filter(s => s.id !== id);
+                    Storage.save(); this.renderManageList();
+                });
+            },
+
+            deleteSelectedCategory() {
+                const catId = document.getElementById('manage-category-select').value;
+                if (!catId) return;
+                UI.confirm(I18N.get('modal_msg'), () => {
+                    delete STATE.categories[catId];
+                    STATE.sentences = STATE.sentences.filter(s => s.catId !== catId);
+                    Storage.save(); this.populateCategorySelect();
+                });
+            },
+
+            // --- 設定與備份 ---
+            syncSettingsUI() {
+                const userLangSelect = document.getElementById('setting-user-lang');
+                const targetLangSelect = document.getElementById('setting-target-lang');
+                const langList = document.getElementById('setting-language-list');
+                userLangSelect.innerHTML = ''; targetLangSelect.innerHTML = ''; langList.innerHTML = '';
+
+                for (let [code, name] of Object.entries(STATE.languages)) {
+                    userLangSelect.add(new Option(name, code));
+                    targetLangSelect.add(new Option(name, code));
+                    const li = document.createElement('li');
+                    li.className = "flex justify-between items-center bg-white p-2 rounded border border-gray-200 shadow-sm";
+                    li.innerHTML = `
+                        <span class="text-sm font-medium text-gray-700">${name} <span class="text-xs text-gray-400">(${code})</span></span>
+                        <button onclick="App.deleteLanguage('${code}')" class="text-red-400 hover:bg-red-50 hover:text-red-600 px-2 py-1 rounded transition">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    `;
+                    langList.appendChild(li);
+                }
+
+                document.getElementById('setting-api-key').value = STATE.settings.apiKey || '';
+                document.getElementById('setting-user-lang').value = STATE.settings.userLang || 'zh-TW';
+                document.getElementById('setting-target-lang').value = STATE.settings.targetLang || 'en-US';
+                document.getElementById('setting-ai-model').value = STATE.settings.model || 'gemini-3.1-flash-lite';
+            },
+
+            addLanguage() {
+                const select = document.getElementById('new-lang-select');
+                const code = select.value;
+                if (!code) return;
+                
+                const name = select.options[select.selectedIndex].dataset.name;
+                if (STATE.languages[code]) return;
+                
+                STATE.languages[code] = name;
+                Storage.save(); this.syncSettingsUI(); select.value = '';
+                populateSystemLanguages(); // 重新整理語言清單的名稱
+            },
+
+            deleteLanguage(code) {
+                if (Object.keys(STATE.languages).length <= 2) return UI.toast('Error: Min 2 languages required.', 'error');
+                UI.confirm(I18N.get('modal_msg'), () => {
+                    delete STATE.languages[code];
+                    const remainingCodes = Object.keys(STATE.languages);
+                    if (STATE.settings.userLang === code) STATE.settings.userLang = remainingCodes[0];
+                    if (STATE.settings.targetLang === code) STATE.settings.targetLang = remainingCodes[1] || remainingCodes[0];
+                    Storage.save(); this.syncSettingsUI();
+                });
+            },
+
+            saveSettings(mode) {
+                const oldUserLang = STATE.settings.userLang;
+                STATE.settings.apiKey = document.getElementById('setting-api-key').value.trim();
+                STATE.settings.userLang = document.getElementById('setting-user-lang').value;
+                STATE.settings.targetLang = document.getElementById('setting-target-lang').value;
+                STATE.settings.model = document.getElementById('setting-ai-model').value;
+                Storage.save();
+
+                // 若母語改變，觸發 AI 介面翻譯
+                if (oldUserLang !== STATE.settings.userLang) {
+                    I18N.translateUI();
+                    populateSystemLanguages(); // 重繪「自訂語言選單」裡的語言名稱
+                }
+
+                if (mode === 'auto') UI.toast('✅ 系統設定已自動儲存', 'success');
+                else UI.toast('✅ 儲存成功', 'success');
+            },
+
+            exportData() {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                    settings: STATE.settings, uiTranslations: STATE.uiTranslations,
+                    languages: STATE.languages, categories: STATE.categories, sentences: STATE.sentences
+                }, null, 2));
+                const dlNode = document.createElement('a');
+                dlNode.setAttribute("href", dataStr);
+                
+                const today = new Date();
+                const dateString = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+                dlNode.setAttribute("download", `LanguageApp_Backup_${dateString}.json`);
+                
+                document.body.appendChild(dlNode); dlNode.click(); dlNode.remove();
+            },
+
+            importDataFromObj(data) {
+                try {
+                    if (!data.categories || !data.sentences) throw new Error("Invalid Format");
+                    STATE.settings = data.settings || STATE.settings;
+                    STATE.uiTranslations = data.uiTranslations || {};
+                    STATE.languages = data.languages || DEFAULT_DATA.languages;
+                    STATE.categories = data.categories; STATE.sentences = data.sentences;
+                    Storage.save(); this.syncSettingsUI(); I18N.init(); this.navigate('dashboard');
+                    UI.toast('還原成功！', 'success');
+                } catch(err) { UI.toast('還原失敗，格式錯誤', 'error'); }
+            },
+
+            importData(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        this.importDataFromObj(data);
+                    } catch(err) { UI.toast('還原失敗，格式錯誤', 'error'); }
+                    event.target.value = '';
+                };
+                reader.readAsText(file);
+            }
+        };
+
+        window.onload = () => App.init();
+    </script>
+</body>
+</html>
