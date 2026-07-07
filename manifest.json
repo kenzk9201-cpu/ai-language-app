@@ -1,4 +1,6 @@
 {
+  "id": "/ai-language-app/",
+  "orientation": "any",
   "name": "ai-language-app",
   "short_name": "ai-lan",
   "description": "句子翻譯練習",
