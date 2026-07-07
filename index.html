@@ -1250,6 +1250,23 @@
         };
 
         window.onload = () => App.init();
+
+// ==========================================
+// 7. 註冊 Service Worker (PWA 離線支援)
+// ==========================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    // 使用您的 GitHub Pages 專案路徑
+    navigator.serviceWorker.register('/ai-language-app/sw.js')
+      .then(registration => {
+        console.log('ServiceWorker 註冊成功，範圍為: ', registration.scope);
+      })
+      .catch(err => {
+        console.log('ServiceWorker 註冊失敗: ', err);
+      });
+  });
+}
+        
     </script>
 </body>
 </html>
