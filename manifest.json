@@ -1,7 +1,7 @@
 {
   "id": "/ai-language-app/",
   "orientation": "any",
-  "name": "ai-language-app",
+  "name": "ai-language",
   "short_name": "ai-lan",
   "description": "句子翻譯練習",
   "start_url": "/",
