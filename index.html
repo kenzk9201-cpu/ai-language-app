@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#2563eb"> <!-- 配合您系統的藍色導覽列 -->
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+<meta name="theme-color" content="#2563eb"> <!-- 配合您系統的藍色導覽列 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 雙語翻譯練習與記憶系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -54,7 +53,7 @@
         <div id="view-dashboard" class="fade-in">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-gray-800" data-i18n="dash_title">我的題庫</h2>
-                <div class="flex gap-2">
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <button onclick="App.navigate('review')" class="bg-purple-100 text-purple-600 hover:bg-purple-200 px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition text-sm shadow-sm flex items-center gap-1">
                         <i class="fas fa-book-open"></i> <span class="hidden sm:inline" data-i18n="btn_review">全面複習</span>
                     </button>
@@ -201,7 +200,7 @@
                         <div class="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
                             <h3 class="text-lg font-bold text-gray-800 mb-2"><i class="fas fa-magic text-purple-500"></i> <span data-i18n="man_ai_gen">AI 依主題自動生成題庫</span></h3>
                             <p class="text-sm text-gray-500 mb-4" data-i18n="man_ai_desc">輸入一個情境或主題，AI 將為您生成 20 題符合您學習語言的對話句。</p>
-                            <div class="flex gap-2">
+                            <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
                                 <input type="text" id="ai-theme-input" data-i18n="man_ai_ph" placeholder="例如：在西餐廳點牛排" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                                 <button id="btn-ai-generate" onclick="App.generateAITheme()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 rounded-lg font-bold transition whitespace-nowrap">
                                     <i class="fas fa-robot"></i> <span data-i18n="man_btn_gen">生成</span>
@@ -214,7 +213,7 @@
                             <p class="text-sm text-gray-500 mb-4" data-i18n="man_cus_desc">輸入您的母語句子，AI 會幫您翻成目標語言。確認後可一鍵加入「自定義」題庫。</p>
                             <div class="flex flex-col gap-3">
                                 <textarea id="custom-quiz-zh" rows="2" data-i18n="man_cus_ph" placeholder="請輸入句子..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
-                                <div class="flex gap-2">
+                                <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
                                     <button id="btn-custom-translate" onclick="App.translateCustom()" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg transition font-medium" data-i18n="man_cus_btn">
                                         翻譯預覽
                                     </button>
